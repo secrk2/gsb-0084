@@ -37,6 +37,8 @@ const browser = await chromium.launch({
   env: {
     ...process.env,
     LD_LIBRARY_PATH: [
+      '/tmp/chromedeps/extracted/usr/lib/x86_64-linux-gnu',
+      '/tmp/chromedeps/extracted/lib/x86_64-linux-gnu',
       '/home/node/.local/chromelibs/root/usr/lib/x86_64-linux-gnu',
       '/home/node/.local/chromelibs/root/lib/x86_64-linux-gnu',
       process.env.LD_LIBRARY_PATH,
@@ -44,6 +46,15 @@ const browser = await chromium.launch({
     FONTCONFIG_FILE: '/home/node/.local/chromelibs/fonts.conf',
     HOME: process.env.HOME,
   },
+});
+const pageErrors = [];
+const consoleErrors = [];
+process.on('exit', () => {
+  if (pageErrors.length || consoleErrors.length) {
+    console.log('--- 浏览器侧错误 ---');
+    pageErrors.forEach((e) => console.log('PAGEERROR:', e));
+    consoleErrors.forEach((e) => console.log('CONSOLE:', e));
+  }
 });
 let failures = 0;
 function check(name, cond) {
@@ -55,6 +66,8 @@ try {
   // ---------- 桌面：应用动态 ----------
   const ctx = await browser.newContext({ viewport: { width: 1366, height: 900 } });
   const page = await ctx.newPage();
+  page.on('pageerror', (e) => pageErrors.push(e.message));
+  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
   await page.goto('http://localhost:5199/activity');
   await page.waitForSelector('.kpi');
   await page.screenshot({ path: '/tmp/jimu-shots/01-desktop-activity.png', fullPage: true });
@@ -118,6 +131,59 @@ try {
   const errText = await page.locator('.card').first().innerText();
   check('桌面-越界+必填 422 内联展示', errText.includes('未通过校验'));
   check('桌面-展示自定义校验提示', await page.locator('.field-error', { hasText: '0.5~30' }).first().isVisible());
+
+  // ---------- 桌面：流程设计器（金额分支 + 财务会签） ----------
+  await page.goto('http://localhost:5199/forms/3/flow');
+  await page.waitForSelector('.flow-canvas');
+  const branchVal = await page.locator('.branch-label').first().inputValue();
+  const nodeVals = await page.locator('.fn-name').evaluateAll((els) => els.map((e) => e.value));
+  check('流程设计器-展示金额分支条件', branchVal.includes('金额超过 1 万'));
+  check('流程设计器-展示财务会签节点', nodeVals.some((v) => v.includes('财务会签')));
+  check('流程设计器-标注当前生效版本', await page.locator('.flow-side').innerText().then((t) => t.includes('当前生效')));
+  await page.screenshot({ path: '/tmp/jimu-shots/07-desktop-flow-design.png', fullPage: true });
+
+  // ---------- 桌面：审批中心待办（吴迪有大单会签待签，周倩已签） ----------
+  await page.locator('.identity-box select').selectOption('u_wudi');
+  await page.goto('http://localhost:5199/approvals');
+  await page.waitForSelector('.todo-card');
+  const todoText = await page.locator('.todo-card').first().innerText();
+  check('审批中心-显示财务会签节点', todoText.includes('财务会签'));
+  check('审批中心-显示已停留时长', /已停留/.test(todoText));
+  check('审批中心-会签共 2 人、剩我 1 人未签', /待签\s*1\s*人/.test(todoText));
+  await page.screenshot({ path: '/tmp/jimu-shots/08-desktop-approvals.png', fullPage: true });
+
+  // 进入实例详情：节点进度 + 时间线
+  await page.locator('.todo-card a', { hasText: '查看详情' }).first().click();
+  await page.waitForSelector('.timeline');
+  const detailText = await page.locator('.page').innerText();
+  check('实例详情-显示当前停在财务会签', detailText.includes('当前停在：财务会签'));
+  check('实例详情-时间线含分支选路', detailText.includes('条件分支选路'));
+  check('实例详情-会签两人（周倩已通过、吴迪待处理）', detailText.includes('周倩') && detailText.includes('吴迪'));
+  await page.screenshot({ path: '/tmp/jimu-shots/09-desktop-instance.png', fullPage: true });
+
+  // 吴迪通过（详情页用意见输入框，无弹窗）→ 会签齐人，流程完成
+  await page.getByRole('button', { name: '✓ 通过' }).click();
+  await page.waitForSelector('text=全部节点通过', { timeout: 5000 });
+  check('实例详情-会签最后一人通过后流程完成', await page.locator('.page').innerText().then((t) => t.includes('全部节点通过')));
+
+  // 退回重提实例（种子 #3）：第 2 轮、修改留痕改前改后可查
+  await page.goto('http://localhost:5199/instances/3');
+  await page.waitForSelector('.revision-card');
+  const revText = await page.locator('.revision-card').innerText();
+  check('修改留痕-显示改前内容', revText.includes('有事'));
+  check('修改留痕-显示改后内容', revText.includes('家中急事'));
+  check('实例列表-第 2 轮标识', await page.locator('.page').innerText().then((t) => t.includes('第 2 轮')));
+  await page.getByText('查看改前 / 改后完整数据快照').click();
+  check('修改留痕-可展开完整快照', await page.locator('.snapshot-box').first().isVisible());
+  await page.screenshot({ path: '/tmp/jimu-shots/10-desktop-revision.png', fullPage: true });
+
+  // 实例列表：当前节点/待办人/停留时长列齐全
+  await page.goto('http://localhost:5199/instances');
+  await page.waitForSelector('.list-table tbody tr');
+  const listText = await page.locator('.list-table').innerText();
+  check('实例列表-含已停留列', listText.includes('已停留'));
+  check('实例列表-含审批中状态', listText.includes('审批中'));
+  await page.locator('.identity-box select').selectOption('u_chen'); // 还原身份
 
   // ---------- 平板：三栏设计器仍可用，看板单列 ----------
   await page.setViewportSize({ width: 820, height: 1100 });

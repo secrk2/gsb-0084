@@ -30,6 +30,7 @@
             <td style="color:var(--text-2);white-space:nowrap">{{ fmt(f.updated_at) }}</td>
             <td style="white-space:nowrap">
               <router-link class="btn sm" :to="`/forms/${f.id}/design`">✏️ 设计</router-link>
+              <router-link class="btn sm" :to="`/forms/${f.id}/flow`" style="margin-left:6px">🔀 流程</router-link>
               <router-link class="btn sm primary" :to="`/forms/${f.id}/fill`" style="margin-left:6px">👁 预览填报</router-link>
             </td>
           </tr>

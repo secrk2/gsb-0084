@@ -55,7 +55,7 @@ test('应用动态：KPI 与校验失败热点', async () => {
   assert.equal(status, 200);
   assert.equal(json.app_count, 3);
   assert.equal(json.form_count, 5);
-  assert.equal(json.submission_count, 30);
+  assert.equal(json.submission_count, 38); // 30 普通填报 + 8 流程场景单据
   assert.ok(json.today_submission_count >= 3, '今日应有种子提交');
   assert.ok(json.fieldHotspots.length >= 5, '应有热点字段统计');
   // 热点排序：最多的排第一，且是请假天数/订单金额这类预设热点

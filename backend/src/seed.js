@@ -6,6 +6,7 @@ import { pool } from './db.js';
 import { migrate } from './db.js';
 import { config } from './config.js';
 import { ensureUploadDir } from './routes/attachments.js';
+import { seedFlows } from './seed-flows.js';
 
 const SCHEMAS = {
   // 1. 员工请假申请
@@ -73,8 +74,8 @@ const SCHEMAS = {
   inspect: [
     { key: 'f_store_name', type: 'text', label: '门店名称', required: true, unique: false, defaultValue: '', validateMessage: '请填写巡检门店全称', maxLength: 60 },
     { key: 'f_inspect_date', type: 'date', label: '巡检日期', required: true, unique: false, defaultValue: null, validateMessage: '', datePrecision: 'day' },
-    { key: 'f_inspector', type: 'select', label: '巡检员', required: true, unique: false, defaultValue: 'u01', validateMessage: '',
-      options: [{ label: '张巡检', value: 'u01' }, { label: '李督查', value: 'u02' }, { label: '王经理', value: 'u03' }] },
+    { key: 'f_inspector', type: 'select', label: '巡检员', required: true, unique: false, defaultValue: 'u_chen', validateMessage: '',
+      options: [{ label: '陈晨', value: 'u_chen' }, { label: '李雷', value: 'u_lilei' }, { label: '王浩', value: 'u_wang' }] },
     { key: 'f_overall_score', type: 'number', label: '整体评分', required: true, unique: false, defaultValue: 90, validateMessage: '评分范围 0~100 分', unit: '分', min: 0, max: 100 },
     { key: 'f_tags', type: 'multiselect', label: '问题标签', required: false, unique: false, defaultValue: [], validateMessage: '',
       options: [{ label: '陈列', value: 'display' }, { label: '卫生', value: 'hygiene' }, { label: '库存', value: 'stock' }, { label: '服务', value: 'service' }, { label: '安全', value: 'safety' }] },
@@ -189,7 +190,7 @@ export function buildSeed() {
     const d = daysAgo(i, 16);
     inspectData.push({
       f_store_name: stores[i], f_inspect_date: isoDate(d),
-      f_inspector: pick(['u01', 'u02', 'u03'], i),
+      f_inspector: pick(['u_chen', 'u_wang', 'u_lilei'], i),
       f_overall_score: pick([95, 88, 76, 92, 65, 84], i),
       f_tags: pick([['display'], ['hygiene', 'stock'], ['service'], [], ['safety', 'hygiene'], ['display', 'service']], i),
       f_summary: pick(['整体良好，个别陈列需调整', '库房补货不及时', '员工服务规范到位', '消防通道堆物，需立即整改'], i),
@@ -228,7 +229,8 @@ export async function runSeed() {
   await migrate();
   await ensureUploadDir();
 
-  await pool.query(`TRUNCATE TABLE validation_errors, submissions, flows, form_views,
+  await pool.query(`TRUNCATE TABLE submission_revisions, flow_events, flow_tasks, flow_instances,
+                    validation_errors, submissions, flows, form_views,
                     attachments, forms, apps RESTART IDENTITY CASCADE`);
 
   // 两个示例附件（供填报/数据展示使用）
@@ -291,20 +293,8 @@ export async function runSeed() {
     }
   }
 
-  // 流程与视图引用（删除这些字段时会被拦下）
-  const flowDefs = [
-    { formIdx: 0, name: '请假审批流', trigger: 'f_leave_type', cond: 'f_days', approver: 'f_dept' },
-    { formIdx: 1, name: '大客户跟进流', trigger: 'f_customer_name', cond: 'f_score', approver: null },
-    { formIdx: 2, name: '订单审批流', trigger: 'f_order_no', cond: 'f_amount', approver: null },
-    { formIdx: 3, name: '巡检整改流', trigger: 'f_store_name', cond: 'f_overall_score', approver: 'f_inspector' },
-  ];
-  for (const fl of flowDefs) {
-    await pool.query(
-      `INSERT INTO flows(app_id, form_id, name, trigger_field, condition_field, approver_field)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [appIds[formDefs[fl.formIdx].appIdx], formIds[fl.formIdx], fl.name, fl.trigger, fl.cond, fl.approver],
-    );
-  }
+  // 流程定义（4 条生效流程）+ 覆盖串行/分支/会签/退回重提的实例，由 seed-flows 驱动
+  const flowSummary = await seedFlows(pool, { appIds, formIds });
 
   const viewDefs = [
     { formIdx: 0, name: '请假台账', columns: ['f_emp_no', 'f_name', 'f_dept', 'f_leave_type', 'f_days', 'f_start_date'], filter: 'f_dept' },
@@ -342,7 +332,7 @@ export async function runSeed() {
     }
   }
 
-  return { appIds, formIds, totalSubmissions: total, attachments: attachIds };
+  return { appIds, formIds, totalSubmissions: total, attachments: attachIds, flowSummary };
 }
 
 // 直接执行：npm run seed
@@ -351,6 +341,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     .then((r) => {
       console.log('种子数据写入完成：');
       console.log(`  应用 ${r.appIds.length} 个，表单 ${r.formIds.length} 张，填报 ${r.totalSubmissions} 条，附件 ${r.attachments.length} 个`);
+      console.log(`  生效流程 ${r.flowSummary.flowIds.length} 条，流程实例 ${r.flowSummary.total} 条（审批中 ${r.flowSummary.running}、已通过 ${r.flowSummary.approved}、退回重提过 ${r.flowSummary.resent}）`);
       return pool.end();
     })
     .catch((e) => {

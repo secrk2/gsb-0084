@@ -9,7 +9,15 @@
       <nav class="nav">
         <router-link to="/activity">应用动态</router-link>
         <router-link to="/apps">应用与表单</router-link>
+        <router-link to="/approvals">审批中心</router-link>
+        <router-link to="/instances">流程实例</router-link>
       </nav>
+      <div class="identity-box">
+        <span>当前身份</span>
+        <select :value="auth.user.id" @change="switchUser($event.target.value)">
+          <option v-for="u in auth.users" :key="u.id" :value="u.id">{{ u.name }} · {{ u.role }}</option>
+        </select>
+      </div>
     </header>
 
     <router-view v-slot="{ Component }">
@@ -25,7 +33,18 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue';
 import { toasts } from './toast.js';
+import { auth, setUser } from './auth.js';
+import { fetchUsers } from './api.js';
+
+onMounted(async () => {
+  try { auth.users = await fetchUsers(); } catch { /* 人员目录加载失败不阻塞页面 */ }
+});
+function switchUser(id) {
+  const u = auth.users.find((x) => x.id === id);
+  if (u) setUser(u);
+}
 </script>
 
 <style>

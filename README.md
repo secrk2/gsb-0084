@@ -1,7 +1,7 @@
 # 积木 Jimu · 低代码搭建平台
 
-业务部门排队要小系统？用「积木」在线搭表单、收数据、看动态。
-本轮交付 **表单设计** 与 **应用动态** 两个模块。
+业务部门排队要小系统？用「积木」在线搭表单、收数据、看动态、走审批。
+本轮交付 **表单设计**、**流程设计** 与 **应用动态** 三个模块。
 
 - 前端：Vue 3 + Vite + Vue Router
 - 后端：Node.js + Express
@@ -21,7 +21,9 @@ docker compose up -d --build
 打开 <http://localhost:8082> ：
 
 - `/activity` 应用动态（首页）
-- `/apps` 应用与表单 → 选应用 → 「✏️ 设计」或「👁 预览填报」
+- `/apps` 应用与表单 → 选应用 → 「✏️ 设计」、「🔀 流程」或「👁 预览填报」
+- `/approvals` 审批中心（我的待办 + 我发起的单据）
+- `/instances` 流程实例（当前节点 / 待办人 / 停留时长总览）
 
 容器与端口：
 
@@ -75,16 +77,30 @@ npm run dev               # :5173，已配置 /api 代理到 :3000
 - 校验同时写入 `validation_errors` 明细，作为看板热点的数据源。
 - 必填为空 / 数字越界或非数字 / 日期格式与精度不符 / 选项不在候选内 / 附件超限或不存在 / 唯一值重复，均会被拦。
 
-### 应用动态（首页）
+### 流程设计（一张表单挂一条审批流）
 
-- **应用数、表单数、今日提交量**（附今日校验失败数、累计提交量）。
+表单列表点「🔀 流程」进入设计器：设置**触发条件**（不满足的提交只入库不审批），在开始/结束之间编排节点，保存草稿后**发布**才对新提交生效。
+
+- **串行审批**：主干上依次添加审批节点，前一节点通过才进入下一节点。
+- **条件分支**：插入「条件分支」节点，按表单字段（and/or 多条件）选路，如「金额 > 10000 走总监，否则走财务」；各分支走各自的节点链后汇合；还可配置「都不满足」的默认分支，默认分支为空则直接结束。
+- **并行会签 / 或签**：一个审批节点可配多名审批人。**会签**（默认）所有人都通过才往下走，任一人未签即停在该节点；**或签**任一人通过即推进，其余待办自动失效。
+- **审批人来源**：固定人员，或**取表单字段值**（如「巡检员」字段填谁就谁审；支持单选/多选字段）。解析不到审批人的节点自动通过并留痕。
+- **退回口径**：审批人一律**退回到发起人**（不提供逐级回退，避免「退给谁」的口径歧义）。单据回到发起人手中修改；改完重新提交后**从第一个审批节点重新走**（新一轮），上一轮的审批记录完整保留。
+- **修改留痕**：重提时服务端对改前/改后数据做字段级 diff（子表单精确到第几行），同时保存改前、改后两份完整快照；实例详情页逐字段对照「改前 ↩ / 改后 ✓」，也可展开看完整 JSON 快照。未做任何修改不允许重提。
+- **实例可观测**：实例列表与审批中心直接显示**当前停在哪个节点、待办人是谁、已经停了多久**（按进入节点时间实时计算）；详情页有节点进度图（含分支命中标记、会签各人状态）和完整事件时间线（发起/选路/通过/退回/重提/完成）。
+- **同表单一生效流程 + 换流程口径**：数据库部分唯一索引保证一张表单最多一条 `published`（另可存一条草稿）。重新发布时旧版转 `archived`：**已经在跑的单据始终按发起时的流程定义快照走完，不会中途改道**；之后的新提交才走新版。停用流程同理（在途走完，新提交不再发起）。
+- 触发条件 / 分支条件 / 审批人字段对表单字段的引用，与既有引用拦截打通：被引用字段删不掉（409 并逐条说明）。
+
+> 当前平台没有登录体系：顶栏可切换「当前身份」，提交与审批都以所选身份留痕。
+
+### 应用动态（首页）- **应用数、表单数、今日提交量**（附今日校验失败数、累计提交量）。
 - **校验失败集中在哪些字段**：近 7 天字段级失败 Top 榜（表单 + 字段名 + 次数条形），越靠前越该优化提示或规则。
 - 近 7 天提交趋势（堆叠：成功/校验失败）、各应用今日提交对比、最近 15 条提交流水。
 - 看板数据走 Redis 缓存（30 秒，可用 `CACHE_TTL=0` 关闭），Redis 不可用时自动降级直查。
 
 ### 预置数据
 
-3 个应用（行政办公、销售管理、门店运营）、5 张表单（请假申请、客户拜访、销售订单、门店巡检、物料申领，覆盖全部字段类型与子表单）、**30 条填报**（分布在近 7 天含今日）、4 条流程与 5 个视图（制造引用拦截场景）、近 7 天校验失败热点数据、2 个示例附件。
+3 个应用（行政办公、销售管理、门店运营）、5 张表单（请假申请、客户拜访、销售订单、门店巡检、物料申领，覆盖全部字段类型与子表单）、**30 条普通填报 + 8 张流程场景单据**（分布在近 7 天含今日）、**4 条生效审批流程**（请假天数分支、订单金额过万走总监+财务会签、低分巡检触发且审批人取字段、低满意度跟进触发）、**7 条流程实例**（串行通过 / 停在总监 / 退回后重提第 2 轮含留痕 / 会签一人已签一人待签 / 会签完成 / 字段取审批人 / 触发条件不满足不发起）与 5 个视图、近 7 天校验失败热点数据、2 个示例附件。
 
 ---
 
@@ -135,15 +151,53 @@ npm run dev               # :5173，已配置 /api 代理到 :3000
 | GET/PUT | `/api/forms/:id` | 详情（含 field_schema）/ 整表更新（含引用拦截） |
 | POST | `/api/forms/:id/fields/check-delete` | 删除前引用预检 |
 | POST | `/api/forms/:id/fields/remove` | 删除字段（409 + 引用明细） |
-| POST | `/api/submissions` | 填报提交（422 返回字段级 errors） |
-| GET | `/api/submissions?formId=` | 某表单提交记录 |
+| POST | `/api/submissions` | 填报提交（挂生效流程且命中触发条件时自动发起审批，返回 `instance_id`） |
+| PUT | `/api/submissions/:id/resubmit` | 退回单据修改重提（重新校验 + 字段级留痕 + 轮次 +1 从头走） |
+| GET | `/api/submissions?formId=`、`/api/submissions/:id` | 某表单提交记录（带当前节点/停留时长）/ 单据详情 |
+| GET | `/api/users` | 人员目录（切换当前身份用） |
+| GET | `/api/flows/form/:formId/design` | 设计器取数（草稿优先，其次生效版副本，再其次空白模板） |
+| PUT | `/api/flows/form/:formId/draft` | 保存流程草稿（结构 + 字段引用校验，400 返回问题明细） |
+| POST | `/api/flows/:id/publish`、`/api/flows/:id/unpublish` | 发布（旧版转 archived）/ 停用 |
+| GET | `/api/instances` | 实例列表（`formId/status/assignee/submitter` 过滤，含当前节点/待办人/停留秒数） |
+| GET | `/api/instances/:id` | 实例详情（任务、事件流水、修改留痕含改前改后快照） |
+| GET | `/api/instances/tasks/todo?assignee=` | 某人的待办 |
+| POST | `/api/instances/tasks/:taskId/approve`、`/return` | 通过（会签需全过/或签一人即可）/ 退回发起人 |
 | GET | `/api/activity/overview` | 看板汇总（Redis 缓存） |
 | POST/GET | `/api/attachments`、`/api/attachments/:id` | 上传/下载附件 |
+
+## 流程定义结构（definition JSONB）
+
+```jsonc
+{
+  "nodes": [
+    { "key": "start", "type": "start", "next": "n1" },
+    { "key": "n1", "type": "approval", "name": "主管审批",
+      "mode": "all",                       // all=会签（全部通过）| any=或签（任一通过）
+      "approvers": [
+        { "type": "user",  "value": "u_wang" },      // 固定人员（账号见 /api/users）
+        { "type": "field", "value": "f_inspector" }  // 取单据字段值
+      ],
+      "next": "c1" },
+    { "key": "c1", "type": "condition", "name": "金额分支",
+      "branches": [
+        { "label": "金额超过 1 万", "logic": "and",
+          "conditions": [{ "field": "f_amount", "op": "gt", "value": 10000 }],
+          "next": "n2" }
+      ],
+      "defaultNext": "n3" },               // 都不命中时走；为 null/缺省则直接结束
+    { "key": "end", "type": "end" }
+  ]
+}
+```
+
+条件运算符：`gt/gte/lt/lte`（数字大小）、`eq/ne`、`in/not_in`、`contains/not_contains`（多选字段）、`empty/not_empty`。
+触发条件 `flows.trigger_rule` 为单组条件 `{field,op,value}`，空 = 全部发起。
+实例在发起时把定义**快照**进 `flow_instances.definition`，因此发布新版不影响在途单据。
 
 ## 目录
 
 ```
 docker-compose.yml          # 一次带起 frontend/backend/postgres/redis，8082
-backend/   Express + pg + ioredis（src/fields.js 校验引擎、references.js 引用拦截、seed.js 种子）
-frontend/  Vue3（views/Designer 设计器、Fill 填报、Activity 看板；components/DynamicForm 等）
+backend/   Express + pg + ioredis（fields.js 校验引擎、flowdef.js 流程纯逻辑、flow.js 流程引擎、references.js 引用拦截、seed*.js 种子）
+frontend/  Vue3（views：Designer 表单设计、FlowDesigner 流程设计、Approvals 审批中心、Instances 实例、Fill 填报、Resubmit 退回修改）
 ```

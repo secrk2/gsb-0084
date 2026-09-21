@@ -255,6 +255,91 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .ref-kind { flex-shrink: 0; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 
+/* ---------- 流程设计器 ---------- */
+.flow-design-page .flow-layout { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
+.flow-canvas { background: #fafbff; }
+.trigger-box { border: 1px dashed #b9c2ff; background: var(--brand-soft); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+.trigger-title { font-weight: 600; font-size: 13.5px; margin-bottom: 8px; }
+.trigger-opt { display: flex; align-items: center; gap: 6px; font-size: 13px; margin: 4px 0; cursor: pointer; }
+.flow-terminal { text-align: center; padding: 9px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+.flow-terminal.start { background: #e9f9f0; color: var(--success); border: 1px solid #b6e6c8; }
+.flow-terminal.end { background: #eef0ff; color: var(--brand); border: 1px solid #c6cdf5; margin-top: 6px; }
+.stage-connector { text-align: center; color: var(--text-3); font-size: 12px; line-height: 1.4; }
+.stage-list.nested { padding-left: 14px; border-left: 2px dashed #d6dcf5; margin: 6px 0 6px 6px; }
+.stage-add { display: flex; gap: 8px; justify-content: center; margin: 8px 0; }
+
+.flow-node { border: 1px solid var(--border); border-radius: 10px; background: #fff; margin: 4px 0; overflow: hidden; }
+.approval-node { border-left: 3px solid var(--brand); }
+.condition-node { border-left: 3px solid var(--warn); }
+.fn-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fafbfe; border-bottom: 1px solid var(--border); }
+.fn-icon { font-size: 15px; }
+.fn-name { font-weight: 600; flex: 1; }
+.fn-mode { width: 150px; font-size: 12.5px; padding: 6px 8px; }
+.fn-icon-btn { width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--border); background: #fff; color: var(--text-2); font-size: 12px; }
+.fn-icon-btn:hover { color: var(--brand); border-color: var(--brand); }
+.fn-icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); }
+.fn-body { padding: 10px; }
+.approver-row { display: grid; grid-template-columns: 110px 1fr 28px; gap: 8px; margin-bottom: 8px; }
+.ap-type, .ap-value { padding: 6px 9px; font-size: 13px; }
+.fn-hint { font-size: 12px; color: var(--text-3); margin-top: 8px; line-height: 1.6; }
+
+.branches { padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.branch-box { border: 1px dashed #e6c98a; background: #fffdf6; border-radius: 9px; padding: 10px; }
+.branch-box.default { border-style: solid; border-color: var(--border); background: #fafbfe; }
+.branch-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; }
+.branch-label { font-weight: 600; flex: 1; }
+.cond-logic { font-size: 12.5px; color: var(--text-2); margin: 4px 0; }
+.logic-sel { width: 80px; display: inline-block; padding: 4px 6px; font-size: 12.5px; }
+.cond-row { display: grid; grid-template-columns: 1fr 104px 1fr 28px; gap: 8px; margin-bottom: 8px; align-items: center; }
+.cond-field, .cond-op, .cond-val { padding: 6px 9px; font-size: 13px; }
+.cond-val.noop { text-align: center; color: var(--text-3); }
+.branch-then { font-size: 12.5px; color: var(--text-2); margin: 8px 0 2px; }
+
+.flow-side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 72px; }
+.flow-side h4 { font-size: 14px; }
+.policy-list { margin: 0; padding-left: 18px; color: var(--text-2); font-size: 12.5px; line-height: 1.8; }
+.policy-list strong { color: var(--text); }
+.version-line { margin-top: 10px; font-size: 12px; color: var(--text-3); background: #fafbfe; border-radius: 8px; padding: 8px 10px; }
+.flow-actions { display: flex; flex-direction: column; gap: 8px; }
+.tag.ok { background: #e9f9f0; color: var(--success); }
+
+/* ---------- 审批运行页 ---------- */
+.flow-statusbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 10px; margin-bottom: 14px; font-size: 13.5px; }
+.flow-statusbar.running { background: #fdf6e8; border: 1px solid #f0d79f; }
+.flow-statusbar.approved { background: #eefaf3; border: 1px solid #bfe6cf; }
+.flow-statusbar.returned { background: var(--danger-soft); border: 1px solid #f2c2c4; }
+.flow-statusbar .grow { flex: 1; }
+.node-pipeline { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; padding: 4px 0 10px; }
+.pl-node { border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 12px; background: #fff; min-width: 110px; font-size: 12.5px; position: relative; }
+.pl-node .pl-name { font-weight: 600; }
+.pl-node .pl-sub { color: var(--text-3); font-size: 11.5px; margin-top: 2px; }
+.pl-node.done { border-color: var(--success); background: #f3fbf6; }
+.pl-node.current { border-color: var(--brand); background: var(--brand-soft); box-shadow: 0 0 0 3px rgba(91,108,255,.1); }
+.pl-node.skipped { opacity: .55; border-style: dashed; }
+.pl-node.branch { border-color: var(--warn); background: #fffdf6; }
+.pl-arrow { align-self: center; padding: 0 8px; color: var(--text-3); }
+.timeline { list-style: none; margin: 0; padding: 0; }
+.timeline li { position: relative; padding: 0 0 16px 22px; border-left: 2px solid var(--border); margin-left: 8px; font-size: 13px; }
+.timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
+.timeline li::before { content: ''; position: absolute; left: -7px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 2px solid var(--text-3); }
+.timeline li.ok::before { border-color: var(--success); background: var(--success); }
+.timeline li.bad::before { border-color: var(--danger); background: var(--danger); }
+.timeline li.cur::before { border-color: var(--brand); background: var(--brand); }
+.timeline .tl-time { color: var(--text-3); font-size: 11.5px; }
+.timeline .tl-comment { color: var(--text-2); margin-top: 2px; background: #fafbfe; border-radius: 8px; padding: 6px 10px; }
+.revision-card { border: 1px solid var(--border); border-radius: 10px; padding: 0; margin-bottom: 12px; overflow: hidden; }
+.revision-head { background: #fafbfe; padding: 10px 14px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--border); }
+.diff-table { width: 100%; border-collapse: collapse; }
+.diff-table th, .diff-table td { text-align: left; padding: 8px 14px; border-bottom: 1px solid var(--border); font-size: 12.5px; vertical-align: top; }
+.diff-table th { color: var(--text-2); font-weight: 500; background: #fcfdff; }
+.diff-before { color: var(--danger); }
+.diff-after { color: var(--success); }
+.todo-card { border-left: 3px solid var(--warn); }
+.wait-pill { font-size: 12px; color: #b96e00; background: #fdf3e1; border-radius: 999px; padding: 2px 10px; font-weight: 500; }
+.identity-box { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+.identity-box select { padding: 5px 8px; font-size: 13px; border-radius: 8px; border: 1px solid var(--border); }
+.two-col-flow { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-items: start; }
+
 /* 手机端设计器拦截 */.mobile-block {
   display: none; text-align: center; padding: 60px 24px;
 }
@@ -264,6 +349,9 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 @media (max-width: 1024px) {
   .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .two-col { grid-template-columns: 1fr; }
+  .two-col-flow { grid-template-columns: 1fr; }
+  .flow-design-page .flow-layout { grid-template-columns: 1fr; }
+  .flow-side { position: static; }
   .designer { grid-template-columns: 180px 1fr 300px; }
   .page { padding: 18px; }
 }
@@ -271,9 +359,11 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 /* ---------- 手机：≤640px ---------- */
 @media (max-width: 640px) {
   .topbar { padding: 0 14px; gap: 12px; height: 52px; }
-  .nav { gap: 2px; }
-  .nav a { padding: 6px 9px; font-size: 13px; }
+  .nav { gap: 2px; overflow-x: auto; flex: none; }
+  .nav a { padding: 6px 9px; font-size: 13px; white-space: nowrap; }
   .logo .sub { display: none; }
+  .identity-box span { display: none; }
+  .identity-box select { max-width: 92px; padding: 4px 6px; }
   .page { padding: 14px 12px 80px; }
   .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .kpi { padding: 14px; }

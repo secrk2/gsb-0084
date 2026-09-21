@@ -1,4 +1,5 @@
 import { pool } from './db.js';
+import { collectDefinitionRefs } from './flowdef.js';
 
 /**
  * 待删字段及其全部后代：{ path: 全路径('a.b') / key: 裸 key / label }
@@ -31,16 +32,22 @@ export async function findReferences(formId, candidates) {
   const refs = [];
 
   const { rows: flows } = await pool.query(
-    `SELECT id, name, trigger_field, condition_field, approver_field FROM flows WHERE form_id = $1`,
+    `SELECT id, name, status, trigger_rule, definition FROM flows WHERE form_id = $1`,
     [formId],
   );
   for (const f of flows) {
-    const t = matchCandidate(f.trigger_field, candidates);
-    if (t) refs.push({ kind: '流程', name: f.name, reason: `流程「${f.name}」的触发条件使用了字段「${t.label}」` });
-    const c = matchCandidate(f.condition_field, candidates);
-    if (c) refs.push({ kind: '流程', name: f.name, reason: `流程「${f.name}」的分支条件使用了字段「${c.label}」` });
-    const a = matchCandidate(f.approver_field, candidates);
-    if (a) refs.push({ kind: '流程', name: f.name, reason: `流程「${f.name}」将字段「${a.label}」指定为审批人` });
+    const used = collectDefinitionRefs({ trigger_rule: f.trigger_rule, ...(f.definition ? { nodes: f.definition.nodes } : {}) });
+    const flowLabel = `流程「${f.name}」`;
+    const t = matchCandidate(used.trigger, candidates);
+    if (t) refs.push({ kind: '流程', name: f.name, reason: `${flowLabel}的触发条件使用了字段「${t.label}」` });
+    for (const ref of used.conditions) {
+      const c = matchCandidate(ref, candidates);
+      if (c) refs.push({ kind: '流程', name: f.name, reason: `${flowLabel}的分支条件使用了字段「${c.label}」` });
+    }
+    for (const ref of used.approverFields) {
+      const a = matchCandidate(ref, candidates);
+      if (a) refs.push({ kind: '流程', name: f.name, reason: `${flowLabel}将字段「${a.label}」指定为审批人` });
+    }
   }
 
   const { rows: views } = await pool.query(

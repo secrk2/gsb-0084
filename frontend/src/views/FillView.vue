@@ -8,7 +8,10 @@
           <h2 class="page-title" style="margin-top:6px">{{ form.name }}
             <span class="tag warn" style="margin-left:8px;vertical-align:middle">预览填报</span>
           </h2>
-          <div class="page-sub">{{ form.description || '设计后直接在此预览，并实际填入一条数据' }}</div>
+          <div class="page-sub">
+            {{ form.description || '设计后直接在此预览，并实际填入一条数据' }}
+            · 以 <strong>{{ auth.user.name }}</strong>（{{ auth.user.role }}）身份提交
+          </div>
         </div>
 
         <div v-if="submitError" class="card" style="border-color:var(--danger);margin-bottom:14px;background:var(--danger-soft)">
@@ -33,9 +36,15 @@
 
         <!-- 提交成功后的最近记录 -->
         <div v-if="lastRecord" class="card" style="margin-top:18px">
-          <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span style="color:var(--success)">✅ 提交成功</span>
             <span class="page-sub">记录 #{{ lastRecord.id }} · {{ fmt(lastRecord.created_at) }}</span>
+            <span style="flex:1"></span>
+            <span v-if="lastRecord.instance_id" class="tag warn">
+              已发起审批 →
+              <router-link :to="`/instances/${lastRecord.instance_id}`" style="margin-left:4px">查看流程</router-link>
+            </span>
+            <span v-else class="tag muted">未挂生效流程（或不满足触发条件），作为普通数据保存</span>
           </div>
           <pre style="padding:14px 18px;margin:0;font-size:12.5px;overflow-x:auto;background:#fafbfe">{{
             JSON.stringify(lastRecord.data, (_k, v) => v, 2)
@@ -52,6 +61,7 @@ import { useRoute } from 'vue-router';
 import DynamicForm from '../components/DynamicForm.vue';
 import { fetchForm, submitForm } from '../api.js';
 import { applyDefaultsClient } from '../schema-utils.js';
+import { auth } from '../auth.js';
 import { toast } from '../toast.js';
 
 const route = useRoute();
@@ -74,7 +84,7 @@ async function submit() {
   errors.value = [];
   submitError.value = '';
   try {
-    const rec = await submitForm(formId, formData.value);
+    const rec = await submitForm(formId, formData.value, auth.user.id);
     lastRecord.value = rec;
     toast.success('提交成功');
     reset(); // 清空表单准备下一条；lastRecord 仍展示刚入库的记录
