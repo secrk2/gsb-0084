@@ -97,6 +97,7 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .tag.muted { background: #f0f2f7; color: var(--text-2); }
 .tag.warn { background: #fdf3e1; color: #b96e00; }
 .tag.danger { background: var(--danger-soft); color: var(--danger); }
+.tag.ok { background: #e9f8ef; color: var(--success); }
 
 .page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
 .page-title { font-size: 20px; }
@@ -287,6 +288,7 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 
   /* 设计器在手机上整体隐藏，仅留提示（手机能填不能设计） */
   .designer { display: none; }
+  .desktop-flow { display: none; }
   .mobile-block { display: block; }
 
   /* 子表单在手机上从表格退化为卡片行 */

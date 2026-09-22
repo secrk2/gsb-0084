@@ -17,7 +17,7 @@ r.get('/', async (req, res, next) => {
     const { rows } = await pool.query(
       `SELECT f.id, f.app_id, f.name, f.description, f.version, f.updated_at,
               (SELECT count(*) FROM submissions s WHERE s.form_id = f.id)::int AS submission_count,
-              (SELECT count(*) FROM flows fl WHERE fl.form_id = f.id)::int AS flow_count,
+              (SELECT count(*) FROM flows fl WHERE fl.form_id = f.id AND fl.status = 'active')::int AS flow_count,
               (SELECT count(*) FROM form_views v WHERE v.form_id = f.id)::int AS view_count
        FROM forms f ${appId ? 'WHERE f.app_id = $1' : ''} ORDER BY f.id`,
       appId ? [Number(appId)] : [],

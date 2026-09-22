@@ -6,6 +6,7 @@ import { pool } from './db.js';
 import { migrate } from './db.js';
 import { config } from './config.js';
 import { ensureUploadDir } from './routes/attachments.js';
+import { seedFlows } from './flow/seed-flows.js';
 
 const SCHEMAS = {
   // 1. 员工请假申请
@@ -228,7 +229,8 @@ export async function runSeed() {
   await migrate();
   await ensureUploadDir();
 
-  await pool.query(`TRUNCATE TABLE validation_errors, submissions, flows, form_views,
+  await pool.query(`TRUNCATE TABLE validation_errors, flow_actions, flow_tasks, flow_instances,
+                    submission_revisions, submissions, flows, form_views,
                     attachments, forms, apps RESTART IDENTITY CASCADE`);
 
   // 两个示例附件（供填报/数据展示使用）
@@ -272,7 +274,8 @@ export async function runSeed() {
     formIds.push(rows[0].id);
   }
 
-  // 30 条提交（8+6+6+6+4），时间分散在近 7 天、含今日
+  // 30 条提交（8+6+6+6+4），时间分散在近 7 天、含今日；均为挂流程前的历史直收单据
+  const creators = ['u20', 'u21', 'u22', 'u23'];
   let total = 0;
   for (let fi = 0; fi < formData.length; fi++) {
     for (const row of formData[fi]) {
@@ -283,27 +286,12 @@ export async function runSeed() {
       if (fi === 0 && total < 2) clean.f_cert = [{ id: attachIds[0] }];
       if (fi === 2 && total % 6 === 0) clean.f_contract = [{ id: attachIds[1] }];
       await pool.query(
-        `INSERT INTO submissions(form_id, form_ver, data, status, created_at)
-         VALUES ($1,1,$2::jsonb,'submitted', $3)`,
-        [formIds[fi], JSON.stringify(clean), daysAgo(ago, 9 + (total % 8))],
+        `INSERT INTO submissions(form_id, form_ver, data, status, created_by, created_at)
+         VALUES ($1,1,$2::jsonb,'submitted', $3, $4)`,
+        [formIds[fi], JSON.stringify(clean), creators[total % creators.length], daysAgo(ago, 9 + (total % 8))],
       );
       total++;
     }
-  }
-
-  // 流程与视图引用（删除这些字段时会被拦下）
-  const flowDefs = [
-    { formIdx: 0, name: '请假审批流', trigger: 'f_leave_type', cond: 'f_days', approver: 'f_dept' },
-    { formIdx: 1, name: '大客户跟进流', trigger: 'f_customer_name', cond: 'f_score', approver: null },
-    { formIdx: 2, name: '订单审批流', trigger: 'f_order_no', cond: 'f_amount', approver: null },
-    { formIdx: 3, name: '巡检整改流', trigger: 'f_store_name', cond: 'f_overall_score', approver: 'f_inspector' },
-  ];
-  for (const fl of flowDefs) {
-    await pool.query(
-      `INSERT INTO flows(app_id, form_id, name, trigger_field, condition_field, approver_field)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [appIds[formDefs[fl.formIdx].appIdx], formIds[fl.formIdx], fl.name, fl.trigger, fl.cond, fl.approver],
-    );
   }
 
   const viewDefs = [
@@ -342,7 +330,10 @@ export async function runSeed() {
     }
   }
 
-  return { appIds, formIds, totalSubmissions: total, attachments: attachIds };
+  // 真实审批流（串行/条件分支/会签/两种退回/改单重提/换版本），并驱动出 9 个多状态实例
+  const flowSeed = await seedFlows(pool, { appIds, formIds });
+
+  return { appIds, formIds, totalSubmissions: total, attachments: attachIds, flowSeed };
 }
 
 // 直接执行：npm run seed

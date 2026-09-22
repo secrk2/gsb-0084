@@ -33,9 +33,14 @@
 
         <!-- 提交成功后的最近记录 -->
         <div v-if="lastRecord" class="card" style="margin-top:18px">
-          <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span style="color:var(--success)">✅ 提交成功</span>
             <span class="page-sub">记录 #{{ lastRecord.id }} · {{ fmt(lastRecord.created_at) }}</span>
+            <span v-if="lastRecord.has_flow" class="tag warn">已进入审批流程</span>
+            <span v-else class="tag muted">该表单未挂流程，已直接收数</span>
+            <router-link class="btn sm primary" style="margin-left:auto" :to="`/submissions/${lastRecord.id}`">
+              查看单据与审批 →
+            </router-link>
           </div>
           <pre style="padding:14px 18px;margin:0;font-size:12.5px;overflow-x:auto;background:#fafbfe">{{
             JSON.stringify(lastRecord.data, (_k, v) => v, 2)

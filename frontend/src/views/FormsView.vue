@@ -16,7 +16,7 @@
     <div v-else class="card">
       <table class="list-table">
         <thead>
-          <tr><th>表单名称</th><th>说明</th><th>提交量</th><th>引用</th><th>最近更新</th><th style="width:210px">操作</th></tr>
+          <tr><th>表单名称</th><th>说明</th><th>提交量</th><th>引用</th><th>最近更新</th><th style="width:300px">操作</th></tr>
         </thead>
         <tbody>
           <tr v-for="f in forms" :key="f.id">
@@ -30,7 +30,9 @@
             <td style="color:var(--text-2);white-space:nowrap">{{ fmt(f.updated_at) }}</td>
             <td style="white-space:nowrap">
               <router-link class="btn sm" :to="`/forms/${f.id}/design`">✏️ 设计</router-link>
-              <router-link class="btn sm primary" :to="`/forms/${f.id}/fill`" style="margin-left:6px">👁 预览填报</router-link>
+              <router-link class="btn sm" :to="`/forms/${f.id}/flow`" style="margin-left:6px">🔀 流程</router-link>
+              <router-link class="btn sm primary" :to="`/forms/${f.id}/fill`" style="margin-left:6px">👁 填报</router-link>
+              <router-link class="btn sm" :to="`/forms/${f.id}/approvals`" style="margin-left:6px">📋 单据</router-link>
             </td>
           </tr>
         </tbody>
